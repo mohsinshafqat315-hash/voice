@@ -1,0 +1,20 @@
+{
+  "name": "ledgersmart-ai",
+  "version": "1.0.0",
+  "description": "Enterprise AI Receipt & Invoice Management Tool",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "seed": "node scripts/seed.js",
+    "migrate": "node scripts/migrate.js"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

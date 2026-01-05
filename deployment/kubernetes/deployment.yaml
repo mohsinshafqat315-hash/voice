@@ -1,0 +1,215 @@
+# Kubernetes deployment configuration
+# Defines pods, services, and scaling for production deployment
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ledgersmart-ai
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledgersmart-backend
+  namespace: ledgersmart-ai
+  labels:
+    app: ledgersmart-backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ledgersmart-backend
+  template:
+    metadata:
+      labels:
+        app: ledgersmart-backend
+    spec:
+      containers:
+      - name: backend
+        image: ledgersmart/backend:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "5000"
+        - name: MONGO_URI
+          valueFrom:
+            secretKeyRef:
+              name: ledgersmart-secrets
+              key: mongo-uri
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: ledgersmart-secrets
+              key: jwt-secret
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ledgersmart-secrets
+              key: stripe-secret-key
+        - name: STRIPE_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: ledgersmart-secrets
+              key: stripe-webhook-secret
+        - name: FRONTEND_URL
+          value: "https://ledgersmart.ai"
+        - name: BACKEND_URL
+          value: "https://api.ledgersmart.ai"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ledgersmart-backend-service
+  namespace: ledgersmart-ai
+spec:
+  selector:
+    app: ledgersmart-backend
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5000
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledgersmart-frontend
+  namespace: ledgersmart-ai
+  labels:
+    app: ledgersmart-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ledgersmart-frontend
+  template:
+    metadata:
+      labels:
+        app: ledgersmart-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: ledgersmart/frontend:latest
+        ports:
+        - containerPort: 80
+        env:
+        - name: VITE_BACKEND_URL
+          value: "https://api.ledgersmart.ai"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ledgersmart-frontend-service
+  namespace: ledgersmart-ai
+spec:
+  selector:
+    app: ledgersmart-frontend
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ledgersmart-ingress
+  namespace: ledgersmart-ai
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  tls:
+  - hosts:
+    - ledgersmart.ai
+    - api.ledgersmart.ai
+    secretName: ledgersmart-tls
+  rules:
+  - host: ledgersmart.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ledgersmart-frontend-service
+            port:
+              number: 80
+  - host: api.ledgersmart.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ledgersmart-backend-service
+            port:
+              number: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ledgersmart-backend-hpa
+  namespace: ledgersmart-ai
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ledgersmart-backend
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

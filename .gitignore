@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Build outputs
+dist/
+build/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Storage
+storage/uploads/*
+storage/temp/*
+!storage/uploads/.gitkeep
+!storage/temp/.gitkeep
+
+# Logs
+logs/*
+*.log
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+.cache/
+.temp/

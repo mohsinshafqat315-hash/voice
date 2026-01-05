@@ -1,0 +1,35 @@
+# Docker Compose configuration
+# Defines services: backend, mongodb (optional)
+
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=${MONGO_URI}
+      - JWT_SECRET=${JWT_SECRET}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - BACKEND_URL=${BACKEND_URL}
+    volumes:
+      - ./storage:/app/storage
+    restart: unless-stopped
+
+  # Optional: Use local MongoDB instead of Atlas
+  # mongodb:
+  #   image: mongo:7
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #   restart: unless-stopped
+
+# volumes:
+#   mongodb_data:
